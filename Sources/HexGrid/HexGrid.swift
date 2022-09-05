@@ -1,5 +1,5 @@
 /// HexGrid is an entry point of the package. It represents a grid of hexagonal cells
-public class HexGrid: Codable {
+public final class HexGrid: Codable {
 
     // MARK: Properties
 
@@ -23,6 +23,7 @@ public class HexGrid: Codable {
     public var cells: Set<Cell> {
         didSet {
             updatePixelDimensions()
+            invalidateCacheVariables()
         }
     }
 
@@ -130,10 +131,38 @@ public class HexGrid: Codable {
     }
 
     // MARK: Coordinates
-    
+
+    /// A cache variable for all coordinates in all cells.
+    private var cacheAllCellsCoordinates = Set<CubeCoordinates>()
+
     /// Coordinates of all available grid cells
     /// - Returns: `Set<CubeCoordinates>`
     public func allCellsCoordinates() -> Set<CubeCoordinates> {
+        if !cacheAllCellsCoordinates.isEmpty {
+            return cacheAllCellsCoordinates
+        } else {
+            var  set = Set<CubeCoordinates>()
+            for cell in cells {
+                set.insert(cell.coordinates)
+            }
+            cacheAllCellsCoordinates = set
+            return set
+        }
+    }
+
+    /// Coordinates of all available grid cells
+    /// - Returns: `Set<CubeCoordinates>`
+    public func allCellsCoordinatesUncached() -> Set<CubeCoordinates> {
+        var  set = Set<CubeCoordinates>()
+        for cell in cells {
+            set.insert(cell.coordinates)
+        }
+        return set
+    }
+
+    /// Coordinates of all available grid cells
+    /// - Returns: `Set<CubeCoordinates>`
+    public func allCellsCoordinatesMap() -> Set<CubeCoordinates> {
         return Set(self.cells.map { $0.coordinates })
     }
     
@@ -215,11 +244,27 @@ public class HexGrid: Codable {
     ///     Example: `Direction.Pointy.northEast.rawValue`
     public func neighborCoordinates(
         for coordinates: CubeCoordinates,
-        at direction: Int) throws -> CubeCoordinates? {
+        at direction: Int
+    ) throws -> CubeCoordinates? {
         let neighborCoords = try Math.neighbor(at: direction, origin: coordinates)
         return isValidCoordinates(neighborCoords) ? neighborCoords : nil
     }
     
+    /// Get neighbor cells for a specified coordinate matching a where clause
+    /// - Parameters:
+    ///   - cell: `Cell`
+    ///   - where: closure that should either return true or false indicating whether or not to include the cell in the list of returned neighboring cells
+    /// - Returns: `Set<Cell>`
+    /// - Throws: `InvalidArgumentsError` in case underlying cube coordinates initializer propagate the error.
+    public func neighbors(
+        for coordinates: CubeCoordinates,
+        where predicate: (Cell) -> Bool
+    ) throws -> Set<Cell> {
+        let neighborsCoordinates = try Math.neighbors(
+            for: coordinates).filter { isValidCoordinates($0) }
+        return Set(neighborsCoordinates.compactMap { cellAt($0) }).filter { predicate($0) }
+    }
+
     /// Get all available neighbor cells for specified cell
     /// - Parameter cell: `Cell`
     /// - Returns: `Set<Cell>`
@@ -229,12 +274,35 @@ public class HexGrid: Codable {
             for: cell.coordinates).filter { isValidCoordinates($0) }
         return Set(neighborsCoordinates.compactMap { cellAt($0) })
     }
-    
+
+    /// This gets called whenever the `Cell` set is updated.
+    private func invalidateCacheVariables() {
+        cacheAllCellsCoordinates = Set<CubeCoordinates>()
+        cacheNeighborsCoordinatesForCoordinates = [CubeCoordinates: Set<CubeCoordinates>]()
+    }
+
+    /// A cache/LUT variable. The thinking here is, unless our `Cell` set changes, the neighbors are always going to be the same.
+    private var cacheNeighborsCoordinatesForCoordinates = [CubeCoordinates: Set<CubeCoordinates>]()
+
     /// Get all available neighbor coordinates for specified coordinates
     /// - Parameter coordinates: `CubeCoordinates`
     /// - Returns: `Set<CubeCoordinates>`
     /// - Throws: `InvalidArgumentsError` in case underlying cube coordinates initializer propagate the error.
     public func neighborsCoordinates(for coordinates: CubeCoordinates) throws -> Set<CubeCoordinates> {
+        if let neighbors = cacheNeighborsCoordinatesForCoordinates[coordinates] {
+            return neighbors
+        } else {
+            let neighbors = try Math.neighbors(for: coordinates).filter { isValidCoordinates($0) }
+            cacheNeighborsCoordinatesForCoordinates[coordinates] = neighbors
+            return neighbors
+        }
+    }
+
+    /// Get all available neighbor coordinates for specified coordinates
+    /// - Parameter coordinates: `CubeCoordinates`
+    /// - Returns: `Set<CubeCoordinates>`
+    /// - Throws: `InvalidArgumentsError` in case underlying cube coordinates initializer propagate the error.
+    public func neighborsCoordinatesOrig(for coordinates: CubeCoordinates) throws -> Set<CubeCoordinates> {
         return try Math.neighbors(for: coordinates).filter { isValidCoordinates($0) }
     }
     

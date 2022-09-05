@@ -1,7 +1,38 @@
 import XCTest
 @testable import HexGrid
 
-class HexGridTests: XCTestCase {   
+class HexGridTests: XCTestCase {
+
+    func testAllCellCoordinates() throws {
+        let grid = HexGrid(
+            shape: GridShape.hexagon(20))
+        measure() {
+            for _ in 0...10000 {
+                _ = grid.allCellsCoordinates()
+            }
+        }
+    }
+
+    func testAllCellCoordinatesMap() throws {
+        let grid = HexGrid(
+            shape: GridShape.hexagon(20))
+        measure() {
+            for _ in 0...10000 {
+                _ = grid.allCellsCoordinatesMap()
+            }
+        }
+    }
+
+    func testAllCellCoordinatesUncached() throws {
+        let grid = HexGrid(
+            shape: GridShape.hexagon(20))
+        measure() {
+            for _ in 0...10000 {
+                _ = grid.allCellsCoordinatesUncached()
+            }
+        }
+    }
+
     /// Get cell by coordinates
     func testGetCell() throws {
         let grid = HexGrid(
@@ -214,7 +245,33 @@ class HexGridTests: XCTestCase {
         ]
         XCTAssertEqual(neighbors, expectedNeighbors)
     }
-    
+
+    /// Measure neighbors coordinates
+    func testGetCellNeighborsCoordinatesSpeed() throws {
+        let grid = HexGrid(
+            shape: GridShape.hexagon(20))
+        measure() {
+            for _ in 0...10000 {
+                for cell in grid.cells {
+                    _ = try? grid.neighborsCoordinates(for: cell.coordinates)
+                }
+            }
+        }
+    }
+
+    /// Measure old (non-cached) neighbors coordinates
+//    func testGetCellNeighborsCoordinatesSpeedOriginal() throws {
+//        let grid = HexGrid(
+//            shape: GridShape.hexagon(20))
+//        measure() {
+//            for _ in 0...10 {
+//                for cell in grid.cells {
+//                    _ = try? grid.neighborsCoordinatesOrig(for: cell.coordinates)
+//                }
+//            }
+//        }
+//    }
+
     /// Get cell neighbors
     func testGetCellNeighbors() throws {
         let grid = HexGrid(
